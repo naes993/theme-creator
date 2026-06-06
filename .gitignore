@@ -1,0 +1,13 @@
+# Local Netlify state
+.netlify/
+
+# Build/deploy output
+dist/
+
+# OS/editor noise
+.DS_Store
+.vscode/
+.idea/
+
+# Logs
+*.log
