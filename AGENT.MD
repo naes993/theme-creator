@@ -39,6 +39,7 @@ The app is intended to be public and app-agnostic. Avoid branding it as being fo
      - success and destructive states
      - code block / syntax highlighting preview
      - link preview using the accent color
+     - palette presets that update the full UI preview, not only syntax highlighting
    - Link visibility matters. Accent colors may look fine on buttons but fail as text links.
 
 ## Supported Export Formats
@@ -159,11 +160,14 @@ Potential public-release improvements:
    - Include a few built-in starting palettes.
    - Allow random palette generation.
 
-7. **Local autosave**
+7. **Preset portability**
+   - Custom presets currently use `localStorage`. Consider adding import/export for preset packs.
+
+8. **Local autosave**
    - Save draft state to `localStorage`.
    - Add reset/clear draft controls.
 
-8. **Better VS Code export**
+9. **Better VS Code export**
    - More complete workbench color coverage.
    - Optional paired light/dark export as two separate files or a small extension scaffold.
 

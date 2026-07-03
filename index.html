@@ -98,6 +98,16 @@
     .check { display: inline-flex; gap: 8px; align-items: center; color: var(--text-soft); font-weight: 700; }
     .check input { width: 17px; height: 17px; accent-color: var(--brand); }
 
+
+    .preset-panel {
+      padding: 14px; border: 1px solid var(--line); border-radius: 18px;
+      background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(2,6,23,.22));
+    }
+    .preset-grid { display: grid; grid-template-columns: 1.25fr .75fr; gap: 12px; align-items: end; }
+    .preset-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .preset-actions .btn { padding: 9px 11px; font-size: 13px; }
+    .preset-note { margin-top: 10px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+
     .tabs { display: grid; grid-template-columns: 1fr 1fr; padding: 6px; background: rgba(2,6,23,.46); border: 1px solid var(--line); border-radius: 16px; margin-bottom: 18px; }
     .tab { border: 0; background: transparent; color: var(--muted); border-radius: 12px; padding: 11px; font-weight: 900; }
     .tab.active { color: white; background: linear-gradient(135deg, rgba(139,92,246,.92), rgba(6,182,212,.44)); box-shadow: 0 8px 22px rgba(0,0,0,.24); }
@@ -229,6 +239,23 @@
             </div>
           </section>
 
+
+          <section class="section">
+            <p class="section-title">Palette Presets</p>
+            <div class="preset-panel">
+              <div class="preset-grid">
+                <div class="field"><label for="palettePreset">Preset</label><select id="palettePreset"></select></div>
+                <div class="field"><label for="presetTarget">Apply to</label><select id="presetTarget"><option value="active">Current editor tab</option><option value="light">Light mode</option><option value="dark">Dark mode</option><option value="both">Both modes</option></select></div>
+              </div>
+              <div class="preset-actions">
+                <button class="btn primary" id="applyPresetBtn">Apply Preset</button>
+                <button class="btn" id="savePresetBtn">Save Current as Preset</button>
+                <button class="btn danger" id="deletePresetBtn">Delete Saved Preset</button>
+              </div>
+              <div class="preset-note">Palette presets change the UI colors in the preview. Shiki themes below only affect syntax/code-block colors.</div>
+            </div>
+          </section>
+
           <div class="tabs" role="tablist">
             <button class="tab active" id="lightTab" data-mode="light">Light Mode</button>
             <button class="tab" id="darkTab" data-mode="dark">Dark Mode</button>
@@ -334,6 +361,31 @@
       ]
     };
 
+
+    const paletteKeys = [...fields.core, ...fields.surface].map(f => f[0]);
+    const savedPresetKey = 'themeCreator.savedPalettePresets.v1';
+
+    const builtInPresets = {
+      'default': {
+        name: 'Default Violet',
+        light: { background:'#ffffff', foreground:'#0f172a', accent:'#8b5cf6', info:'#f59e0b', success:'#10b981', destructive:'#ef4444', paper:'#f8fafc', navigator:'#f1f5f9', input:'#e2e8f0', popover:'#ffffff', popoverSolid:'#ffffff' },
+        dark: { background:'#000000', foreground:'#e2e2e2', accent:'#a78bfa', info:'#fbbf24', success:'#34d399', destructive:'#f87171', paper:'#0a0a0a', navigator:'#050505', input:'#111111', popover:'#0d0d0d', popoverSolid:'#0d0d0d' },
+        shikiTheme: { light: 'github-light', dark: 'github-dark' }
+      },
+      'openclaw': {
+        name: 'OpenClaw Default',
+        light: { background:'#f7f8fb', foreground:'#171a21', accent:'#ef4d55', info:'#b45309', success:'#16a34a', destructive:'#dc2626', paper:'#ffffff', navigator:'#eef1f6', input:'#e6e9f0', popover:'#ffffff', popoverSolid:'#ffffff' },
+        dark: { background:'#090b10', foreground:'#d7d9e0', accent:'#ef4d55', info:'#a8b0c0', success:'#22c55e', destructive:'#ef4444', paper:'#171b24', navigator:'#0d1017', input:'#1b2029', popover:'#0a0c12', popoverSolid:'#141821' },
+        shikiTheme: { light: 'github-light', dark: 'github-dark' }
+      },
+      'woodsmoke': {
+        name: 'Woodsmoke',
+        light: { background:'#4e6265', foreground:'#ffffff', accent:'#657cc3', info:'#ffce7a', success:'#10b981', destructive:'#ef4444', paper:'#2b3d40', navigator:'#415153', input:'#808d9d', popover:'#1e2929', popoverSolid:'#ffffff' },
+        dark: { background:'#1d2425', foreground:'#e2e2e2', accent:'#7f97df', info:'#fbbf24', success:'#34d399', destructive:'#940000', paper:'#0a0a0a', navigator:'#101314', input:'#111111', popover:'#0d0d0d', popoverSolid:'#0d0d0d' },
+        shikiTheme: { light: 'github-light', dark: 'github-dark' }
+      }
+    };
+
     const shikiThemes = ['github-light','github-dark','dracula','one-dark-pro','nord','monokai','solarized-light','solarized-dark','night-owl','catppuccin-mocha','catppuccin-latte','material-theme','min-light','min-dark','vitesse-light','vitesse-dark','slack-dark','slack-ochin','rose-pine','rose-pine-moon','everforest-light','everforest-dark'];
 
     // Lightweight approximations of popular Shiki themes for the visual preview.
@@ -403,6 +455,90 @@
       t.textContent = message;
       t.classList.add('show');
       setTimeout(() => t.classList.remove('show'), 2400);
+    }
+
+
+    function loadSavedPresets() {
+      try {
+        return JSON.parse(localStorage.getItem(savedPresetKey) || '{}');
+      } catch {
+        return {};
+      }
+    }
+
+    function saveSavedPresets(presets) {
+      localStorage.setItem(savedPresetKey, JSON.stringify(presets));
+    }
+
+    function getAllPresets() {
+      return { ...builtInPresets, ...loadSavedPresets() };
+    }
+
+    function renderPresetOptions() {
+      const sel = $('#palettePreset');
+      if (!sel) return;
+      const saved = loadSavedPresets();
+      const builtIns = Object.entries(builtInPresets).map(([id, preset]) => `<option value="${id}">${escapeHtml(preset.name)} · built-in</option>`);
+      const custom = Object.entries(saved).map(([id, preset]) => `<option value="${id}">${escapeHtml(preset.name)} · saved</option>`);
+      sel.innerHTML = [...builtIns, ...custom].join('');
+    }
+
+    function copyPalette(target, palette) {
+      for (const key of paletteKeys) if (palette[key] !== undefined) state[target][key] = palette[key];
+    }
+
+    function applyPalettePreset() {
+      const presetId = $('#palettePreset').value;
+      const preset = getAllPresets()[presetId];
+      if (!preset) return toast('Preset not found.');
+      const target = $('#presetTarget').value;
+      if (target === 'both') {
+        copyPalette('light', preset.light || preset.dark);
+        copyPalette('dark', preset.dark || preset.light);
+      } else if (target === 'active') {
+        const mode = state.activeEditorMode;
+        copyPalette(mode, preset[mode] || preset.dark || preset.light);
+      } else {
+        copyPalette(target, preset[target] || preset.dark || preset.light);
+        setEditorMode(target);
+        setPreviewMode(target);
+      }
+      if (preset.shikiTheme) {
+        state.meta.shikiTheme.light = preset.shikiTheme.light || state.meta.shikiTheme.light;
+        state.meta.shikiTheme.dark = preset.shikiTheme.dark || state.meta.shikiTheme.dark;
+      }
+      hydrateInputs();
+      toast(`${preset.name} palette applied.`);
+    }
+
+    function saveCurrentPreset() {
+      updateMetaFromInputs();
+      const name = prompt('Name this preset:', state.meta.name || 'My Preset');
+      if (!name) return;
+      const id = 'custom-' + slugify(name) + '-' + Date.now().toString(36);
+      const saved = loadSavedPresets();
+      saved[id] = {
+        name,
+        light: { ...state.light },
+        dark: { ...state.dark },
+        shikiTheme: { ...state.meta.shikiTheme }
+      };
+      saveSavedPresets(saved);
+      renderPresetOptions();
+      $('#palettePreset').value = id;
+      toast('Preset saved in this browser.');
+    }
+
+    function deleteSavedPreset() {
+      const id = $('#palettePreset').value;
+      if (builtInPresets[id]) return toast('Built-in presets cannot be deleted.');
+      const saved = loadSavedPresets();
+      if (!saved[id]) return toast('Saved preset not found.');
+      if (!confirm(`Delete saved preset “${saved[id].name}”?`)) return;
+      delete saved[id];
+      saveSavedPresets(saved);
+      renderPresetOptions();
+      toast('Saved preset deleted.');
     }
 
     function renderSelects() {
@@ -479,6 +615,7 @@
       $('#modeLight').checked = state.meta.supportedModes.includes('light');
       $('#modeDark').checked = state.meta.supportedModes.includes('dark');
       renderSelects();
+      renderPresetOptions();
       renderColorRows();
       updatePreview();
     }
@@ -671,6 +808,9 @@
       el.addEventListener('input', () => { updateMetaFromInputs(); updatePreview(); });
       el.addEventListener('change', () => { updateMetaFromInputs(); updatePreview(); });
     });
+    $('#applyPresetBtn').addEventListener('click', applyPalettePreset);
+    $('#savePresetBtn').addEventListener('click', saveCurrentPreset);
+    $('#deletePresetBtn').addEventListener('click', deleteSavedPreset);
     $('#lightTab').addEventListener('click', () => setEditorMode('light'));
     $('#darkTab').addEventListener('click', () => setEditorMode('dark'));
     $('#previewLight').addEventListener('click', () => setPreviewMode('light'));

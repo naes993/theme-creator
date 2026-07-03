@@ -7,6 +7,8 @@ Live app: https://themecreator.netlify.app
 ## Features
 
 - Visual light and dark theme editor
+- Built-in palette presets, including an OpenClaw-inspired default
+- Save custom palette presets locally in your browser
 - Native color pickers plus manual CSS color inputs
 - Collapsible surface color controls
 - Sticky live preview with:
@@ -38,6 +40,18 @@ open index.html
 
 - `index.html` — main app entry point
 - `theme-creator.html` — standalone copy of the app
+
+## Presets
+
+Palette presets change the full UI color palette for light mode, dark mode, the active editor tab, or both modes. Shiki themes are separate and only affect the syntax-highlighted code preview/export metadata.
+
+Current built-in presets include:
+
+- Default Violet
+- OpenClaw Default
+- Woodsmoke
+
+Custom presets are saved to `localStorage` in the current browser.
 - `AGENT.MD` — project notes for AI-assisted development
 
 ## Export Formats
