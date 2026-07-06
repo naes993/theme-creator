@@ -40,6 +40,7 @@ open index.html
 
 - `index.html` — main app entry point
 - `theme-creator.html` — standalone copy of the app
+- `AGENT.MD` — project notes for AI-assisted development
 
 ## Presets
 
@@ -52,7 +53,6 @@ Current built-in presets include:
 - Woodsmoke
 
 Custom presets are saved to `localStorage` in the current browser.
-- `AGENT.MD` — project notes for AI-assisted development
 
 ## Export Formats
 

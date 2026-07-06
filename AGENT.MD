@@ -117,8 +117,18 @@ After editing `theme-creator.html`:
    node --check /tmp/theme-creator-script.js
    ```
 
-3. Open `theme-creator.html` directly in a browser.
-4. Test:
+3. Verify all HTML copies are byte-identical (the app is maintained as `index.html` plus synced copies):
+
+   ```bash
+   git diff --no-index index.html theme-creator.html
+   git diff --no-index index.html dist/index.html
+   git diff --no-index index.html dist/theme-creator.html
+   ```
+
+   All three commands must produce no output. If they differ, copy `index.html` over the others.
+
+4. Open `theme-creator.html` directly in a browser.
+5. Test:
    - Light and dark editor tabs.
    - Preview light/dark toggle.
    - Native color input and text color input sync.

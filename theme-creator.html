@@ -189,6 +189,17 @@
     .toast { position: fixed; right: 24px; bottom: 24px; background: #101827; color: var(--text); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; box-shadow: var(--shadow); opacity: 0; transform: translateY(10px); transition: .22s ease; z-index: 40; }
     .toast.show { opacity: 1; transform: translateY(0); }
 
+    .tab[disabled], .seg button[disabled] { opacity: .38; cursor: not-allowed; }
+    .btn[disabled] { opacity: .45; cursor: not-allowed; transform: none; }
+    .field-label { color: #dbe4f0; font-size: 13px; font-weight: 700; }
+    .contrast-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+    .contrast-chip { border-radius: 999px; padding: 5px 10px; font-size: 12px; font-weight: 900; border: 1px solid var(--line); }
+    .contrast-chip.pass { background: rgba(16,185,129,.14); color: #6ee7b7; border-color: rgba(16,185,129,.35); }
+    .contrast-chip.fail { background: rgba(239,68,68,.14); color: #fca5a5; border-color: rgba(239,68,68,.35); }
+    .contrast-chip.unknown { background: rgba(255,255,255,.06); color: var(--muted); }
+    .modal.small { width: min(480px, 100%); }
+    .modal.small .modal-actions { justify-content: flex-end; }
+
     @media (max-width: 1040px) {
       .grid { grid-template-columns: 1fr; }
       .hero { align-items: flex-start; flex-direction: column; }
@@ -216,8 +227,10 @@
         </div>
       </div>
       <div class="actions">
-        <label class="export-target"><span>Export target</span><select id="exportTarget"><option value="craft">App Theme JSON</option><option value="vscode">VS Code Theme JSON</option><option value="css">CSS Variables</option><option value="tokens">Design Tokens JSON</option></select></label>
+        <label class="export-target"><span>Export target</span><select id="exportTarget"><option value="craft">App Theme JSON</option><option value="vscode">VS Code Theme JSON (follows preview mode)</option><option value="css">CSS Variables</option><option value="tokens">Design Tokens JSON</option></select></label>
+        <button class="btn" id="resetBtn">Reset to defaults</button>
         <button class="btn" id="importBtn">⇪ Import JSON</button>
+        <button class="btn" id="copyBtn">⧉ Copy</button>
         <button class="btn primary" id="exportBtn">⇩ Export</button>
       </div>
     </header>
@@ -232,7 +245,7 @@
               <div class="field"><label for="name">Theme name</label><input class="text-input" id="name" value="My Theme"></div>
               <div class="field"><label for="author">Author</label><input class="text-input" id="author" value="Author Name"></div>
               <div class="field"><label for="license">License</label><input class="text-input" id="license" value="MIT"></div>
-              <div class="field"><label>Supported modes</label><div class="checks"><label class="check"><input type="checkbox" id="modeLight" checked> Light</label><label class="check"><input type="checkbox" id="modeDark" checked> Dark</label></div></div>
+              <div class="field"><span class="field-label" id="supportedModesLabel">Supported modes</span><div class="checks" role="group" aria-labelledby="supportedModesLabel"><label class="check" for="modeLight"><input type="checkbox" id="modeLight" checked> Light</label><label class="check" for="modeDark"><input type="checkbox" id="modeDark" checked> Dark</label></div></div>
               <div class="field" style="grid-column:1/-1"><label for="description">Description</label><textarea id="description">Short description</textarea></div>
               <div class="field"><label for="shikiLight">Shiki theme — light</label><select id="shikiLight"></select></div>
               <div class="field"><label for="shikiDark">Shiki theme — dark</label><select id="shikiDark"></select></div>
@@ -250,15 +263,16 @@
               <div class="preset-actions">
                 <button class="btn primary" id="applyPresetBtn">Apply Preset</button>
                 <button class="btn" id="savePresetBtn">Save Current as Preset</button>
+                <button class="btn" id="exportPresetsBtn">Export Presets</button>
                 <button class="btn danger" id="deletePresetBtn">Delete Saved Preset</button>
               </div>
               <div class="preset-note">Palette presets change the UI colors in the preview. Shiki themes below only affect syntax/code-block colors.</div>
             </div>
           </section>
 
-          <div class="tabs" role="tablist">
-            <button class="tab active" id="lightTab" data-mode="light">Light Mode</button>
-            <button class="tab" id="darkTab" data-mode="dark">Dark Mode</button>
+          <div class="tabs" role="tablist" aria-label="Editor palette mode">
+            <button class="tab active" id="lightTab" data-mode="light" role="tab" aria-selected="true">Light Mode</button>
+            <button class="tab" id="darkTab" data-mode="dark" role="tab" aria-selected="false" tabindex="-1">Dark Mode</button>
           </div>
 
           <section class="section">
@@ -278,11 +292,12 @@
         <div class="preview-wrap">
           <div class="preview-toolbar">
             <div class="seg" aria-label="Preview mode">
-              <button id="previewLight" class="active">Light</button>
-              <button id="previewDark">Dark</button>
+              <button id="previewLight" class="active" aria-pressed="true">Light</button>
+              <button id="previewDark" aria-pressed="false">Dark</button>
             </div>
             <span class="hint" id="previewModeHint">Using light palette</span>
           </div>
+          <div class="contrast-chips" id="contrastChips" aria-label="Contrast checks"></div>
           <div class="mock-app" id="mockApp">
             <aside class="mock-side">
               <div class="mock-brand"><span class="dot"></span> Theme Studio</div>
@@ -326,13 +341,13 @@
     </main>
   </div>
 
-  <div class="modal-backdrop" id="modalBackdrop" role="dialog" aria-modal="true">
+  <div class="modal-backdrop" id="modalBackdrop" role="dialog" aria-modal="true" aria-labelledby="importModalTitle">
     <div class="modal">
-      <div class="card-head"><h2>Import Theme JSON</h2><button class="btn" id="closeModal">Close</button></div>
+      <div class="card-head"><h2 id="importModalTitle">Import Theme JSON</h2><button class="btn" id="closeModal">Close</button></div>
       <div class="modal-body">
-        <p class="hint">Paste JSON below or upload a .json file. Matching fields will populate the editor.</p>
-        <input type="file" id="fileInput" accept="application/json,.json" class="text-input" style="margin-bottom:12px">
-        <textarea id="jsonPaste" placeholder='{"name":"My Theme", ...}'></textarea>
+        <p class="hint">Paste JSON below or upload a .json file. Matching fields will populate the editor. Preset packs exported from this app are also recognized.</p>
+        <input type="file" id="fileInput" accept="application/json,.json" class="text-input" style="margin-bottom:12px" aria-label="Upload theme JSON file">
+        <textarea id="jsonPaste" placeholder='{"name":"My Theme", ...}' aria-label="Theme JSON"></textarea>
       </div>
       <div class="modal-actions">
         <button class="btn danger" id="clearPaste">Clear</button>
@@ -340,7 +355,18 @@
       </div>
     </div>
   </div>
-  <div class="toast" id="toast"></div>
+
+  <div class="modal-backdrop" id="dialogBackdrop" role="dialog" aria-modal="true" aria-labelledby="dialogTitle">
+    <div class="modal small">
+      <div class="card-head"><h2 id="dialogTitle">Dialog</h2><button class="btn" id="dialogClose">Close</button></div>
+      <div class="modal-body">
+        <p class="hint" id="dialogMessage"></p>
+        <input class="text-input" id="dialogInput" aria-labelledby="dialogTitle">
+      </div>
+      <div class="modal-actions" id="dialogActions"></div>
+    </div>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script>
     const fields = {
@@ -435,39 +461,84 @@
       return s.color !== '';
     }
 
+    let hexProbeCtx = null;
     function toHexIfPossible(value) {
-      const canvas = document.createElement('canvas');
-      canvas.width = canvas.height = 1;
-      const ctx = canvas.getContext('2d');
+      if (!hexProbeCtx) {
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = 1;
+        hexProbeCtx = canvas.getContext('2d');
+      }
       try {
-        ctx.fillStyle = '#000000';
-        ctx.fillStyle = value;
-        return ctx.fillStyle.startsWith('#') ? ctx.fillStyle : null;
+        hexProbeCtx.fillStyle = '#000000';
+        hexProbeCtx.fillStyle = value;
+        return typeof hexProbeCtx.fillStyle === 'string' && hexProbeCtx.fillStyle.startsWith('#') ? hexProbeCtx.fillStyle : null;
       } catch { return null; }
+    }
+
+    // WCAG 2.x relative luminance + contrast ratio, computed from 6-digit hex.
+    function relativeLuminance(hex6) {
+      const channels = [1, 3, 5].map(i => {
+        const c = parseInt(hex6.slice(i, i + 2), 16) / 255;
+        return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+      });
+      return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+    }
+
+    function contrastRatio(colorA, colorB) {
+      const a = toHexIfPossible(colorA);
+      const b = toHexIfPossible(colorB);
+      if (!a || !b) return null;
+      const la = relativeLuminance(a.slice(0, 7));
+      const lb = relativeLuminance(b.slice(0, 7));
+      const lighter = Math.max(la, lb);
+      const darker = Math.min(la, lb);
+      return (lighter + 0.05) / (darker + 0.05);
     }
 
     function slugify(str) {
       return (str || 'theme').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'theme';
     }
 
+    let toastTimer = null;
     function toast(message) {
       const t = $('#toast');
       t.textContent = message;
       t.classList.add('show');
-      setTimeout(() => t.classList.remove('show'), 2400);
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
     }
 
+    function isValidPresetEntry(entry) {
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return false;
+      if (typeof entry.name !== 'string' || !entry.name.trim()) return false;
+      const okLight = entry.light && typeof entry.light === 'object' && !Array.isArray(entry.light);
+      const okDark = entry.dark && typeof entry.dark === 'object' && !Array.isArray(entry.dark);
+      return okLight || okDark;
+    }
 
     function loadSavedPresets() {
+      let parsed;
       try {
-        return JSON.parse(localStorage.getItem(savedPresetKey) || '{}');
+        parsed = JSON.parse(localStorage.getItem(savedPresetKey) || '{}');
       } catch {
         return {};
       }
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+      const valid = {};
+      for (const [id, entry] of Object.entries(parsed)) {
+        if (isValidPresetEntry(entry)) valid[id] = entry;
+      }
+      return valid;
     }
 
     function saveSavedPresets(presets) {
-      localStorage.setItem(savedPresetKey, JSON.stringify(presets));
+      try {
+        localStorage.setItem(savedPresetKey, JSON.stringify(presets));
+        return true;
+      } catch {
+        toast('Couldn’t save preset — browser storage is unavailable or full.');
+        return false;
+      }
     }
 
     function getAllPresets() {
@@ -477,13 +548,29 @@
     function renderPresetOptions() {
       const sel = $('#palettePreset');
       if (!sel) return;
-      const saved = loadSavedPresets();
-      const builtIns = Object.entries(builtInPresets).map(([id, preset]) => `<option value="${id}">${escapeHtml(preset.name)} · built-in</option>`);
-      const custom = Object.entries(saved).map(([id, preset]) => `<option value="${id}">${escapeHtml(preset.name)} · saved</option>`);
-      sel.innerHTML = [...builtIns, ...custom].join('');
+      const prev = sel.value;
+      sel.innerHTML = '';
+      const addOption = (id, text) => {
+        const opt = document.createElement('option');
+        opt.value = id;
+        opt.textContent = text;
+        sel.appendChild(opt);
+      };
+      for (const [id, preset] of Object.entries(builtInPresets)) addOption(id, `${preset.name} · built-in`);
+      for (const [id, preset] of Object.entries(loadSavedPresets())) addOption(id, `${preset.name} · saved`);
+      if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
+      updateDeletePresetButton();
+    }
+
+    function updateDeletePresetButton() {
+      const btn = $('#deletePresetBtn');
+      if (!btn) return;
+      const id = $('#palettePreset').value;
+      btn.disabled = !!builtInPresets[id];
     }
 
     function copyPalette(target, palette) {
+      if (!palette || typeof palette !== 'object') return;
       for (const key of paletteKeys) if (palette[key] !== undefined) state[target][key] = palette[key];
     }
 
@@ -503,30 +590,54 @@
         setEditorMode(target);
         setPreviewMode(target);
       }
-      if (preset.shikiTheme) {
-        state.meta.shikiTheme.light = preset.shikiTheme.light || state.meta.shikiTheme.light;
-        state.meta.shikiTheme.dark = preset.shikiTheme.dark || state.meta.shikiTheme.dark;
-      }
+      // Presets intentionally never touch the Shiki theme selections;
+      // those are separate and only affect syntax colors.
       hydrateInputs();
       toast(`${preset.name} palette applied.`);
     }
 
-    function saveCurrentPreset() {
-      updateMetaFromInputs();
-      const name = prompt('Name this preset:', state.meta.name || 'My Preset');
-      if (!name) return;
-      const id = 'custom-' + slugify(name) + '-' + Date.now().toString(36);
+    function writeSavedPreset(name, existingId) {
       const saved = loadSavedPresets();
+      const id = existingId || ('custom-' + slugify(name) + '-' + Date.now().toString(36));
       saved[id] = {
         name,
         light: { ...state.light },
         dark: { ...state.dark },
         shikiTheme: { ...state.meta.shikiTheme }
       };
-      saveSavedPresets(saved);
+      if (!saveSavedPresets(saved)) return;
       renderPresetOptions();
       $('#palettePreset').value = id;
-      toast('Preset saved in this browser.');
+      updateDeletePresetButton();
+      toast(existingId ? 'Preset replaced.' : 'Preset saved in this browser.');
+    }
+
+    function saveCurrentPreset() {
+      updateMetaFromInputs();
+      showDialog({
+        title: 'Save Preset',
+        message: 'Save the current light and dark palettes as a reusable preset in this browser.',
+        input: { value: state.meta.name || 'My Preset', placeholder: 'Preset name' },
+        buttons: [
+          { label: 'Cancel' },
+          { label: 'Save', kind: 'primary', onClick: value => {
+            const name = (value || '').trim();
+            if (!name) return toast('Preset name is required.');
+            const saved = loadSavedPresets();
+            const existingId = Object.keys(saved).find(id => saved[id].name === name);
+            if (!existingId) return writeSavedPreset(name, null);
+            showDialog({
+              title: 'Preset Already Exists',
+              message: `A saved preset named “${name}” already exists.`,
+              buttons: [
+                { label: 'Cancel' },
+                { label: 'Save as copy', onClick: () => writeSavedPreset(name, null) },
+                { label: 'Replace existing', kind: 'primary', onClick: () => writeSavedPreset(name, existingId) }
+              ]
+            });
+          } }
+        ]
+      });
     }
 
     function deleteSavedPreset() {
@@ -534,17 +645,60 @@
       if (builtInPresets[id]) return toast('Built-in presets cannot be deleted.');
       const saved = loadSavedPresets();
       if (!saved[id]) return toast('Saved preset not found.');
-      if (!confirm(`Delete saved preset “${saved[id].name}”?`)) return;
-      delete saved[id];
-      saveSavedPresets(saved);
+      showDialog({
+        title: 'Delete Preset',
+        message: `Delete saved preset “${saved[id].name}”? This cannot be undone.`,
+        buttons: [
+          { label: 'Cancel' },
+          { label: 'Delete', kind: 'danger', onClick: () => {
+            delete saved[id];
+            if (!saveSavedPresets(saved)) return;
+            renderPresetOptions();
+            toast('Saved preset deleted.');
+          } }
+        ]
+      });
+    }
+
+    function exportSavedPresets() {
+      const saved = loadSavedPresets();
+      const entries = Object.values(saved);
+      if (!entries.length) return toast('No saved presets to export.');
+      const content = JSON.stringify({ themeCreatorPresets: entries }, null, 2) + '\n';
+      downloadFile(content, 'theme-creator-presets.json', 'application/json');
+      toast(`Exported ${entries.length} preset${entries.length === 1 ? '' : 's'}.`);
+    }
+
+    function importPresetPack(list) {
+      const valid = list.filter(isValidPresetEntry);
+      if (!valid.length) return toast('No valid presets found in that file.');
+      const saved = loadSavedPresets();
+      for (const entry of valid) {
+        const existingId = Object.keys(saved).find(id => saved[id].name === entry.name);
+        const id = existingId || ('custom-' + slugify(entry.name) + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6));
+        saved[id] = {
+          name: entry.name,
+          light: entry.light && typeof entry.light === 'object' ? { ...entry.light } : undefined,
+          dark: entry.dark && typeof entry.dark === 'object' ? { ...entry.dark } : undefined,
+          shikiTheme: entry.shikiTheme && typeof entry.shikiTheme === 'object' ? { ...entry.shikiTheme } : undefined
+        };
+      }
+      if (!saveSavedPresets(saved)) return;
       renderPresetOptions();
-      toast('Saved preset deleted.');
+      const skipped = list.length - valid.length;
+      toast(`Imported ${valid.length} preset${valid.length === 1 ? '' : 's'}${skipped ? ` (${skipped} invalid skipped)` : ''}.`);
     }
 
     function renderSelects() {
       for (const id of ['shikiLight','shikiDark']) {
         const sel = $('#' + id);
-        sel.innerHTML = shikiThemes.map(t => `<option value="${t}">${t}</option>`).join('');
+        sel.innerHTML = '';
+        for (const t of shikiThemes) {
+          const opt = document.createElement('option');
+          opt.value = t;
+          opt.textContent = t;
+          sel.appendChild(opt);
+        }
       }
       $('#shikiLight').value = state.meta.shikiTheme.light;
       $('#shikiDark').value = state.meta.shikiTheme.dark;
@@ -553,11 +707,15 @@
     function rowTemplate([key, label, help]) {
       const mode = state.activeEditorMode;
       const val = state[mode][key] || '';
-      const hex = toHexIfPossible(val) || '#000000';
+      const hexFull = toHexIfPossible(val);
+      // <input type="color"> only accepts 6-digit hex; truncate any alpha for the swatch only.
+      const hex = (hexFull || '#000000').slice(0, 7);
+      const inputId = `color-text-${key}`;
+      const invalid = hexFull ? '' : ' invalid';
       return `<div class="color-row" data-key="${key}">
-        <div class="color-label"><label>${label}</label><small>${help}</small></div>
+        <div class="color-label"><label for="${inputId}">${label}</label><small>${help}</small></div>
         <input type="color" value="${hex}" aria-label="${label} color swatch">
-        <input class="text-input color-text" value="${escapeHtml(val)}" aria-label="${label} text value" placeholder="#ffffff, oklch(...), tomato">
+        <input class="text-input color-text${invalid}" id="${inputId}" value="${escapeHtml(val)}" aria-label="${label} text value" placeholder="#ffffff, oklch(...), tomato">
       </div>`;
     }
 
@@ -586,7 +744,7 @@
           if (isValidCssColor(v)) {
             text.classList.remove('invalid');
             const hex = toHexIfPossible(v);
-            if (hex) color.value = hex;
+            if (hex) color.value = hex.slice(0, 7);
           } else {
             text.classList.add('invalid');
           }
@@ -617,22 +775,77 @@
       renderSelects();
       renderPresetOptions();
       renderColorRows();
+      updateModeAvailability();
       updatePreview();
+    }
+
+    function updateModeAvailability() {
+      const modes = state.meta.supportedModes;
+      // Only disable a mode when the other one is still supported.
+      const lightDisabled = !modes.includes('light') && modes.includes('dark');
+      const darkDisabled = !modes.includes('dark') && modes.includes('light');
+      $('#lightTab').disabled = lightDisabled;
+      $('#darkTab').disabled = darkDisabled;
+      $('#previewLight').disabled = lightDisabled;
+      $('#previewDark').disabled = darkDisabled;
+      if (lightDisabled && state.activeEditorMode === 'light') setEditorMode('dark');
+      if (darkDisabled && state.activeEditorMode === 'dark') setEditorMode('light');
+      if (lightDisabled && state.previewMode === 'light') setPreviewMode('dark');
+      if (darkDisabled && state.previewMode === 'dark') setPreviewMode('light');
     }
 
     function setEditorMode(mode) {
       state.activeEditorMode = mode;
-      $('#lightTab').classList.toggle('active', mode === 'light');
-      $('#darkTab').classList.toggle('active', mode === 'dark');
+      const lightTab = $('#lightTab');
+      const darkTab = $('#darkTab');
+      lightTab.classList.toggle('active', mode === 'light');
+      darkTab.classList.toggle('active', mode === 'dark');
+      lightTab.setAttribute('aria-selected', String(mode === 'light'));
+      darkTab.setAttribute('aria-selected', String(mode === 'dark'));
+      lightTab.tabIndex = mode === 'light' ? 0 : -1;
+      darkTab.tabIndex = mode === 'dark' ? 0 : -1;
       renderColorRows();
+      scheduleDraftSave();
     }
 
     function setPreviewMode(mode) {
       state.previewMode = mode;
-      $('#previewLight').classList.toggle('active', mode === 'light');
-      $('#previewDark').classList.toggle('active', mode === 'dark');
+      const lightBtn = $('#previewLight');
+      const darkBtn = $('#previewDark');
+      lightBtn.classList.toggle('active', mode === 'light');
+      darkBtn.classList.toggle('active', mode === 'dark');
+      lightBtn.setAttribute('aria-pressed', String(mode === 'light'));
+      darkBtn.setAttribute('aria-pressed', String(mode === 'dark'));
       $('#previewModeHint').textContent = `Using ${mode} palette`;
       updatePreview();
+    }
+
+    function renderContrastChips() {
+      const wrap = $('#contrastChips');
+      if (!wrap) return;
+      const p = state[state.previewMode];
+      const pairs = [
+        ['Text / Bg', p.foreground, p.background],
+        ['Accent / Bg', p.accent, p.background],
+        ['Accent / Paper', p.accent, p.paper],
+        ['White / Accent', '#ffffff', p.accent]
+      ];
+      wrap.innerHTML = '';
+      for (const [label, fg, bg] of pairs) {
+        const chip = document.createElement('span');
+        const ratio = contrastRatio(fg, bg);
+        if (ratio === null) {
+          chip.className = 'contrast-chip unknown';
+          chip.textContent = `${label} —`;
+          chip.title = `${label}: could not compute contrast for these values`;
+        } else {
+          const pass = ratio >= 4.5;
+          chip.className = 'contrast-chip ' + (pass ? 'pass' : 'fail');
+          chip.textContent = `${label} ${pass ? 'AA' : '✕'} ${ratio.toFixed(1)}:1`;
+          chip.title = `${label}: contrast ${ratio.toFixed(2)}:1 — ${pass ? 'passes' : 'fails'} WCAG AA (4.5:1) for normal text`;
+        }
+        wrap.appendChild(chip);
+      }
     }
 
     function updatePreview() {
@@ -660,20 +873,31 @@
       for (const [name, value] of Object.entries(codeVars)) el.style.setProperty(name, value);
       const label = $('#codeThemeName');
       if (label) label.textContent = themeName;
+      renderContrastChips();
+      scheduleDraftSave();
+    }
+
+    let vsCodeExportWarning = '';
+
+    function getSupportedModes() {
+      return state.meta.supportedModes.length ? [...state.meta.supportedModes] : ['light'];
     }
 
     function buildThemeJson() {
       updateMetaFromInputs();
+      const modes = getSupportedModes();
+      // The primary (top-level) palette is the first supported mode.
+      const primary = modes.includes('light') ? 'light' : 'dark';
       const json = {
         name: state.meta.name,
         description: state.meta.description,
         author: state.meta.author,
         license: state.meta.license,
-        supportedModes: state.meta.supportedModes.length ? state.meta.supportedModes : ['light'],
+        supportedModes: modes,
         shikiTheme: { light: state.meta.shikiTheme.light, dark: state.meta.shikiTheme.dark },
-        ...state.light
+        ...state[primary]
       };
-      if (json.supportedModes.includes('dark')) json.dark = { ...state.dark };
+      if (primary === 'light' && modes.includes('dark')) json.dark = { ...state.dark };
       return json;
     }
 
@@ -683,61 +907,76 @@
       const p = state[mode];
       const themeName = state.meta.shikiTheme[mode] || state.meta.shikiTheme.light || 'github-light';
       const code = shikiPalettes[themeName] || shikiPalettes['github-light'];
-      return {
+      // VS Code themes require hex colors; normalize named colors, oklch(), etc.
+      let unconvertible = 0;
+      const toVsCodeHex = v => {
+        const h = toHexIfPossible(v);
+        if (!h) { unconvertible++; return '#000000'; }
+        return h.slice(0, 7);
+      };
+      const colors = {
+        'focusBorder': p.accent,
+        'foreground': p.foreground,
+        'descriptionForeground': code.muted,
+        'errorForeground': p.destructive,
+        'activityBar.background': p.navigator,
+        'activityBar.foreground': p.foreground,
+        'activityBarBadge.background': p.accent,
+        'activityBarBadge.foreground': '#ffffff',
+        'sideBar.background': p.navigator,
+        'sideBar.foreground': p.foreground,
+        'sideBarSectionHeader.background': p.paper,
+        'editor.background': p.background,
+        'editor.foreground': p.foreground,
+        'editorLineNumber.foreground': code.muted,
+        'editorCursor.foreground': p.accent,
+        'editorWidget.background': p.popover,
+        'panel.background': p.paper,
+        'panel.border': code.border,
+        'button.background': p.accent,
+        'button.foreground': '#ffffff',
+        'input.background': p.input,
+        'input.foreground': p.foreground,
+        'dropdown.background': p.popoverSolid,
+        'badge.background': p.info,
+        'badge.foreground': '#111111',
+        'terminal.ansiGreen': p.success,
+        'terminal.ansiRed': p.destructive,
+        'terminal.ansiYellow': p.info,
+        'terminal.ansiBlue': p.accent
+      };
+      for (const key of Object.keys(colors)) colors[key] = toVsCodeHex(colors[key]);
+      colors['editor.selectionBackground'] = toVsCodeHex(p.accent) + '55';
+      const theme = {
         '$schema': 'vscode://schemas/color-theme',
         name: `${state.meta.name || 'My Theme'} (${mode})`,
         type: mode,
         author: state.meta.author,
-        colors: {
-          'focusBorder': p.accent,
-          'foreground': p.foreground,
-          'descriptionForeground': code.muted,
-          'errorForeground': p.destructive,
-          'activityBar.background': p.navigator,
-          'activityBar.foreground': p.foreground,
-          'activityBarBadge.background': p.accent,
-          'activityBarBadge.foreground': '#ffffff',
-          'sideBar.background': p.navigator,
-          'sideBar.foreground': p.foreground,
-          'sideBarSectionHeader.background': p.paper,
-          'editor.background': p.background,
-          'editor.foreground': p.foreground,
-          'editorLineNumber.foreground': code.muted,
-          'editorCursor.foreground': p.accent,
-          'editor.selectionBackground': p.accent + '55',
-          'editorWidget.background': p.popover,
-          'panel.background': p.paper,
-          'panel.border': code.border,
-          'button.background': p.accent,
-          'button.foreground': '#ffffff',
-          'input.background': p.input,
-          'input.foreground': p.foreground,
-          'dropdown.background': p.popoverSolid,
-          'badge.background': p.info,
-          'badge.foreground': '#111111',
-          'terminal.ansiGreen': p.success,
-          'terminal.ansiRed': p.destructive,
-          'terminal.ansiYellow': p.info,
-          'terminal.ansiBlue': p.accent
-        },
+        colors,
         tokenColors: [
-          { scope: ['comment', 'punctuation.definition.comment'], settings: { foreground: code.comment, fontStyle: 'italic' } },
-          { scope: ['keyword', 'storage', 'storage.type'], settings: { foreground: code.keyword } },
-          { scope: ['string', 'constant.other.symbol'], settings: { foreground: code.string } },
-          { scope: ['entity.name.function', 'support.function'], settings: { foreground: code.function } },
-          { scope: ['constant.numeric', 'constant.language'], settings: { foreground: code.number } },
-          { scope: ['keyword.operator', 'punctuation'], settings: { foreground: code.operator } }
+          { scope: ['comment', 'punctuation.definition.comment'], settings: { foreground: toVsCodeHex(code.comment), fontStyle: 'italic' } },
+          { scope: ['keyword', 'storage', 'storage.type'], settings: { foreground: toVsCodeHex(code.keyword) } },
+          { scope: ['string', 'constant.other.symbol'], settings: { foreground: toVsCodeHex(code.string) } },
+          { scope: ['entity.name.function', 'support.function'], settings: { foreground: toVsCodeHex(code.function) } },
+          { scope: ['constant.numeric', 'constant.language'], settings: { foreground: toVsCodeHex(code.number) } },
+          { scope: ['keyword.operator', 'punctuation'], settings: { foreground: toVsCodeHex(code.operator) } }
         ]
       };
+      vsCodeExportWarning = unconvertible
+        ? ` Warning: ${unconvertible} color${unconvertible === 1 ? '' : 's'} couldn’t be converted to hex and exported as #000000.`
+        : '';
+      return theme;
     }
 
     function buildCssVariables() {
       updateMetaFromInputs();
+      const modes = getSupportedModes();
+      const primary = modes.includes('light') ? 'light' : 'dark';
       const keys = [...fields.core, ...fields.surface].map(f => f[0]);
       const lines = [`/* ${state.meta.name || 'Theme'} */`, ':root {'];
-      keys.forEach(key => lines.push(`  --${key.replace(/[A-Z]/g, m => '-' + m.toLowerCase())}: ${state.light[key]};`));
+      keys.forEach(key => lines.push(`  --${key.replace(/[A-Z]/g, m => '-' + m.toLowerCase())}: ${state[primary][key]};`));
       lines.push('}');
-      if (state.meta.supportedModes.includes('dark')) {
+      if (primary === 'light' && modes.includes('dark')) {
         lines.push('', '[data-theme="dark"] {');
         keys.forEach(key => lines.push(`  --${key.replace(/[A-Z]/g, m => '-' + m.toLowerCase())}: ${state.dark[key]};`));
         lines.push('}');
@@ -747,6 +986,7 @@
 
     function buildDesignTokens() {
       updateMetaFromInputs();
+      const modes = getSupportedModes();
       const keys = [...fields.core, ...fields.surface].map(f => f[0]);
       const makeTokens = palette => Object.fromEntries(keys.map(key => [key, { value: palette[key], type: 'color' }]));
       const tokens = {
@@ -754,33 +994,67 @@
         description: state.meta.description,
         author: state.meta.author,
         license: state.meta.license,
-        color: { light: makeTokens(state.light) },
+        color: {},
         shikiTheme: { light: state.meta.shikiTheme.light, dark: state.meta.shikiTheme.dark }
       };
-      if (state.meta.supportedModes.includes('dark')) tokens.color.dark = makeTokens(state.dark);
+      if (modes.includes('light')) tokens.color.light = makeTokens(state.light);
+      if (modes.includes('dark')) tokens.color.dark = makeTokens(state.dark);
       return tokens;
     }
 
     function getExportPayload() {
       const target = $('#exportTarget').value;
       const name = slugify(state.meta.name || 'theme');
-      if (target === 'vscode') return { content: JSON.stringify(buildVSCodeTheme(), null, 2) + '\n', filename: `${name}-vscode-${state.previewMode}.json`, type: 'application/json', label: 'VS Code theme exported.' };
+      if (target === 'vscode') {
+        const content = JSON.stringify(buildVSCodeTheme(), null, 2) + '\n';
+        return { content, filename: `${name}-vscode-${state.previewMode}.json`, type: 'application/json', label: 'VS Code theme exported.' + vsCodeExportWarning };
+      }
       if (target === 'css') return { content: buildCssVariables(), filename: `${name}-variables.css`, type: 'text/css', label: 'CSS variables exported.' };
       if (target === 'tokens') return { content: JSON.stringify(buildDesignTokens(), null, 2) + '\n', filename: `${name}-tokens.json`, type: 'application/json', label: 'Design tokens exported.' };
       return { content: JSON.stringify(buildThemeJson(), null, 2) + '\n', filename: `${name}.json`, type: 'application/json', label: 'App theme exported.' };
     }
 
-    function exportJson() {
-      const payload = getExportPayload();
-      const blob = new Blob([payload.content], { type: payload.type });
+    function downloadFile(content, filename, type) {
+      const blob = new Blob([content], { type });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = payload.filename;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(a.href);
+    }
+
+    function exportJson() {
+      const payload = getExportPayload();
+      downloadFile(payload.content, payload.filename, payload.type);
       toast(payload.label);
+    }
+
+    async function copyExportToClipboard() {
+      const payload = getExportPayload();
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(payload.content);
+          return toast('Copied export to clipboard.');
+        }
+        throw new Error('clipboard API unavailable');
+      } catch {
+        // Fallback for file:// and other contexts without the async clipboard API.
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = payload.content;
+          ta.style.position = 'fixed';
+          ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.select();
+          const ok = document.execCommand('copy');
+          ta.remove();
+          toast(ok ? 'Copied export to clipboard.' : 'Copy failed — your browser blocked clipboard access.');
+        } catch {
+          toast('Copy failed — your browser blocked clipboard access.');
+        }
+      }
     }
 
     function applyThemeObject(obj) {
@@ -790,51 +1064,231 @@
       state.meta.author = obj.author ?? state.meta.author;
       state.meta.license = obj.license ?? state.meta.license;
       if (Array.isArray(obj.supportedModes)) state.meta.supportedModes = obj.supportedModes.filter(m => ['light','dark'].includes(m));
-      if (obj.shikiTheme) {
-        state.meta.shikiTheme.light = obj.shikiTheme.light || state.meta.shikiTheme.light;
-        state.meta.shikiTheme.dark = obj.shikiTheme.dark || state.meta.shikiTheme.dark;
-        for (const theme of [state.meta.shikiTheme.light, state.meta.shikiTheme.dark]) if (!shikiThemes.includes(theme)) shikiThemes.push(theme);
+      const warnings = [];
+      if (obj.shikiTheme && typeof obj.shikiTheme === 'object') {
+        // Only accept known Shiki theme names; anything else falls back to the default.
+        for (const mode of ['light', 'dark']) {
+          const requested = obj.shikiTheme[mode];
+          if (requested === undefined) continue;
+          if (typeof requested === 'string' && shikiThemes.includes(requested)) {
+            state.meta.shikiTheme[mode] = requested;
+          } else {
+            state.meta.shikiTheme[mode] = mode === 'dark' ? 'github-dark' : 'github-light';
+            warnings.push(`unknown Shiki ${mode} theme replaced with the default`);
+          }
+        }
       }
       for (const key of allKeys) if (obj[key] !== undefined) state.light[key] = obj[key];
       if (obj.dark && typeof obj.dark === 'object') for (const key of allKeys) if (obj.dark[key] !== undefined) state.dark[key] = obj.dark[key];
       hydrateInputs();
-      toast('Theme imported.');
+      toast('Theme imported.' + (warnings.length ? ` Warning: ${warnings.join('; ')}.` : ''));
     }
 
-    function openModal() { $('#modalBackdrop').classList.add('show'); }
-    function closeModal() { $('#modalBackdrop').classList.remove('show'); }
+    const overlayReturnFocus = new Map();
+
+    function openOverlay(backdrop, focusTarget) {
+      overlayReturnFocus.set(backdrop, document.activeElement);
+      backdrop.classList.add('show');
+      if (focusTarget) focusTarget.focus();
+    }
+
+    function closeOverlay(backdrop) {
+      backdrop.classList.remove('show');
+      const prev = overlayReturnFocus.get(backdrop);
+      overlayReturnFocus.delete(backdrop);
+      if (prev && typeof prev.focus === 'function' && document.contains(prev)) prev.focus();
+    }
+
+    function openModal() { openOverlay($('#modalBackdrop'), $('#jsonPaste')); }
+    function closeModal() { closeOverlay($('#modalBackdrop')); }
+
+    function closeDialog() { closeOverlay($('#dialogBackdrop')); }
+
+    function showDialog({ title, message = '', input = null, buttons = [] }) {
+      const backdrop = $('#dialogBackdrop');
+      $('#dialogTitle').textContent = title;
+      const msg = $('#dialogMessage');
+      msg.textContent = message;
+      msg.style.display = message ? '' : 'none';
+      const inputEl = $('#dialogInput');
+      if (input) {
+        inputEl.style.display = '';
+        inputEl.value = input.value || '';
+        inputEl.placeholder = input.placeholder || '';
+      } else {
+        inputEl.style.display = 'none';
+        inputEl.value = '';
+      }
+      const actions = $('#dialogActions');
+      actions.innerHTML = '';
+      let primaryBtn = null;
+      for (const spec of buttons) {
+        const btn = document.createElement('button');
+        btn.className = 'btn' + (spec.kind ? ' ' + spec.kind : '');
+        btn.textContent = spec.label;
+        btn.addEventListener('click', () => {
+          const value = inputEl.value;
+          closeDialog();
+          if (spec.onClick) spec.onClick(value);
+        });
+        if (spec.kind === 'primary' && !primaryBtn) primaryBtn = btn;
+        actions.appendChild(btn);
+      }
+      inputEl.onkeydown = e => {
+        if (e.key === 'Enter' && primaryBtn) { e.preventDefault(); primaryBtn.click(); }
+      };
+      openOverlay(backdrop, input ? inputEl : (primaryBtn || $('#dialogClose')));
+    }
+
+    function trapFocus(e, container) {
+      const focusables = [...container.querySelectorAll('button, input, textarea, select, a[href]')]
+        .filter(el => !el.disabled && el.offsetParent !== null);
+      if (!focusables.length) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+
+    document.addEventListener('keydown', e => {
+      const openBackdrops = [...document.querySelectorAll('.modal-backdrop.show')];
+      if (!openBackdrops.length) return;
+      const top = openBackdrops[openBackdrops.length - 1];
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeOverlay(top);
+      } else if (e.key === 'Tab') {
+        trapFocus(e, top);
+      }
+    });
+
+    // ----- Draft autosave -----
+    const draftKey = 'themeCreator.draft.v1';
+    const defaultState = JSON.parse(JSON.stringify(state));
+    let draftTimer = null;
+
+    function scheduleDraftSave() {
+      if (draftTimer) clearTimeout(draftTimer);
+      draftTimer = setTimeout(() => {
+        try {
+          localStorage.setItem(draftKey, JSON.stringify(state));
+        } catch { /* storage unavailable or full — draft autosave is best-effort */ }
+      }, 400);
+    }
+
+    function restoreDraft() {
+      let draft;
+      try {
+        const raw = localStorage.getItem(draftKey);
+        if (!raw) return;
+        draft = JSON.parse(raw);
+      } catch { return; }
+      if (!draft || typeof draft !== 'object' || Array.isArray(draft)) return;
+      if (['light', 'dark'].includes(draft.activeEditorMode)) state.activeEditorMode = draft.activeEditorMode;
+      if (['light', 'dark'].includes(draft.previewMode)) state.previewMode = draft.previewMode;
+      if (draft.meta && typeof draft.meta === 'object') {
+        for (const key of ['name', 'description', 'author', 'license']) {
+          if (typeof draft.meta[key] === 'string') state.meta[key] = draft.meta[key];
+        }
+        if (Array.isArray(draft.meta.supportedModes)) {
+          state.meta.supportedModes = draft.meta.supportedModes.filter(m => ['light', 'dark'].includes(m));
+        }
+        if (draft.meta.shikiTheme && typeof draft.meta.shikiTheme === 'object') {
+          for (const mode of ['light', 'dark']) {
+            const t = draft.meta.shikiTheme[mode];
+            if (typeof t === 'string' && shikiThemes.includes(t)) state.meta.shikiTheme[mode] = t;
+          }
+        }
+      }
+      for (const mode of ['light', 'dark']) {
+        if (draft[mode] && typeof draft[mode] === 'object') {
+          for (const key of paletteKeys) {
+            if (typeof draft[mode][key] === 'string') state[mode][key] = draft[mode][key];
+          }
+        }
+      }
+    }
+
+    function resetToDefaults() {
+      showDialog({
+        title: 'Reset to Defaults',
+        message: 'Clear the saved draft and restore the default theme? Saved presets are kept.',
+        buttons: [
+          { label: 'Cancel' },
+          { label: 'Reset', kind: 'danger', onClick: () => {
+            try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
+            const fresh = JSON.parse(JSON.stringify(defaultState));
+            state.activeEditorMode = fresh.activeEditorMode;
+            state.previewMode = fresh.previewMode;
+            state.meta = fresh.meta;
+            state.light = fresh.light;
+            state.dark = fresh.dark;
+            setEditorMode(state.activeEditorMode);
+            setPreviewMode(state.previewMode);
+            hydrateInputs();
+            toast('Theme reset to defaults.');
+          } }
+        ]
+      });
+    }
 
     document.querySelectorAll('#name,#description,#author,#license,#modeLight,#modeDark,#shikiLight,#shikiDark').forEach(el => {
-      el.addEventListener('input', () => { updateMetaFromInputs(); updatePreview(); });
-      el.addEventListener('change', () => { updateMetaFromInputs(); updatePreview(); });
+      el.addEventListener('input', () => { updateMetaFromInputs(); updateModeAvailability(); updatePreview(); });
+      el.addEventListener('change', () => { updateMetaFromInputs(); updateModeAvailability(); updatePreview(); });
     });
     $('#applyPresetBtn').addEventListener('click', applyPalettePreset);
     $('#savePresetBtn').addEventListener('click', saveCurrentPreset);
+    $('#exportPresetsBtn').addEventListener('click', exportSavedPresets);
     $('#deletePresetBtn').addEventListener('click', deleteSavedPreset);
+    $('#palettePreset').addEventListener('change', updateDeletePresetButton);
     $('#lightTab').addEventListener('click', () => setEditorMode('light'));
     $('#darkTab').addEventListener('click', () => setEditorMode('dark'));
+    document.querySelector('.tabs').addEventListener('keydown', e => {
+      if (!['ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+      e.preventDefault();
+      const other = state.activeEditorMode === 'light' ? 'dark' : 'light';
+      const btn = $('#' + other + 'Tab');
+      if (btn.disabled) return;
+      setEditorMode(other);
+      btn.focus();
+    });
     $('#previewLight').addEventListener('click', () => setPreviewMode('light'));
     $('#previewDark').addEventListener('click', () => setPreviewMode('dark'));
     $('#exportBtn').addEventListener('click', exportJson);
+    $('#copyBtn').addEventListener('click', copyExportToClipboard);
+    $('#resetBtn').addEventListener('click', resetToDefaults);
     $('#importBtn').addEventListener('click', openModal);
     $('#closeModal').addEventListener('click', closeModal);
+    $('#dialogClose').addEventListener('click', closeDialog);
     $('#clearPaste').addEventListener('click', () => { $('#jsonPaste').value = ''; $('#fileInput').value = ''; });
     $('#modalBackdrop').addEventListener('click', e => { if (e.target.id === 'modalBackdrop') closeModal(); });
+    $('#dialogBackdrop').addEventListener('click', e => { if (e.target.id === 'dialogBackdrop') closeDialog(); });
     $('#fileInput').addEventListener('change', async e => {
       const file = e.target.files[0];
       if (!file) return;
       $('#jsonPaste').value = await file.text();
     });
     $('#applyImport').addEventListener('click', () => {
+      let obj;
       try {
-        const obj = JSON.parse($('#jsonPaste').value);
-        applyThemeObject(obj);
-        closeModal();
+        obj = JSON.parse($('#jsonPaste').value);
       } catch (err) {
-        toast('Import failed: invalid JSON.');
+        return toast('Import failed: invalid JSON.');
       }
+      if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
+        return toast('Import must be a JSON object.');
+      }
+      if (Array.isArray(obj.themeCreatorPresets)) {
+        importPresetPack(obj.themeCreatorPresets);
+      } else {
+        applyThemeObject(obj);
+      }
+      closeModal();
     });
 
+    restoreDraft();
+    setEditorMode(state.activeEditorMode);
+    setPreviewMode(state.previewMode);
     hydrateInputs();
   </script>
 </body>
